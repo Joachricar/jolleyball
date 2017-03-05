@@ -239,6 +239,9 @@ function ThreeJSRenderer(canvas) {
 	self.camera = new THREE.PerspectiveCamera(75, self.boardSize.width/self.boardSize.height, 0.1, 1000);
 
 	self.renderer = new THREE.WebGLRenderer({canvas: canvas});
+	self.renderer.shadowMap.enabled = true;
+	self.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	self.renderer.shadowMap.renderReverseSided = true;
 	self.camera.position.z = 500;
 	self.camera.position.x = self.boardSize.width/2;
 	self.camera.position.y = self.boardSize.height/2;
@@ -249,30 +252,64 @@ function ThreeJSRenderer(canvas) {
 	var ground = new THREE.PlaneGeometry(self.boardSize.width, self.boardSize.height);
 	var groundMaterial = new THREE.MeshLambertMaterial( {color: 0x00ff00 });
 	var groundObj = new THREE.Mesh(ground, groundMaterial);
+	groundObj.receiveShadow = true;
+	groundObj.castShadow = false;
 	groundObj.position.x = self.boardSize.width/2;
 	groundObj.rotation.x = Math.PI * 1.5;
 
 	self.scene.add(groundObj);
 
-	var pointLight = new THREE.PointLight(0xffffff);
-	pointLight.position.y = self.boardSize.height * 2;
+	var pointLight = new THREE.SpotLight(0xffffff);
+	pointLight.position.y = 600;
+	pointLight.distance = 1000;
 	pointLight.position.x = self.boardSize.width/2;
+	pointLight.castShadow = true;
+	pointLight.shadow.mapSize.width = 1024;
+	pointLight.shadow.mapSize.height = 1024;
+
+	pointLight.target = new THREE.Object3D();
+	pointLight.target.position.x = self.boardSize.width / 2;
+
+	pointLight.shadow.camera.near = 1;
+	pointLight.shadow.camera.far = 10000;
+	pointLight.shadow.camera.fov = 90;
 	self.scene.add(pointLight);
+	self.scene.add(pointLight.target);
+	self.scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+	var camHelper = new THREE.CameraHelper(pointLight.shadow.camera);
+	self.scene.add(camHelper);
 	
 	self.addPlayer = function(entity) {
 		var geom = new THREE.SphereGeometry(entity.radius, 32, 32, 0, Math.PI*2, 0, Math.PI/2);
 		var material = new THREE.MeshLambertMaterial({color: 0xffff00});
+		material.side = THREE.DoubleSide;
 		var sphere = new THREE.Mesh(geom, material);
 
+		var circle = new THREE.CircleGeometry(entity.radius, 32);
+		var cMat = new THREE.MeshLambertMaterial({color: 0xffff00});
+		var cObj = new THREE.Mesh(circle, cMat);
+
+		sphere.castShadow = true;
+		sphere.receiveShadow = true;
+
 		sphere.gameEntity = entity;
+
+		cObj.castShadow = true;
+		cObj.gameEntity = entity;
+		cObj.rotation.x = Math.PI * 0.5;
+
 		self.players.push(sphere);
+		self.players.push(cObj);
 		self.scene.add(sphere);
+		self.scene.add(cObj);
 	};
 
 	self.setBall = function(entity) {
-		var geom = new THREE.SphereGeometry(entity.radius, 8, 6, Math.PI, Math.PI*2);
+		var geom = new THREE.SphereGeometry(entity.radius, 32, 32, Math.PI, Math.PI*2);
 		var material = new THREE.MeshLambertMaterial({color: 0xffff00});
 		var sphere = new THREE.Mesh(geom, material);
+		sphere.castShadow = true;
 
 		sphere.gameEntity = entity;
 
