@@ -241,7 +241,6 @@ function ThreeJSRenderer(canvas) {
 	self.renderer = new THREE.WebGLRenderer({canvas: canvas});
 	self.renderer.shadowMap.enabled = true;
 	self.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-	self.renderer.shadowMap.renderReverseSided = true;
 	self.camera.position.z = 500;
 	self.camera.position.x = self.boardSize.width/2;
 	self.camera.position.y = self.boardSize.height/2;
@@ -259,9 +258,10 @@ function ThreeJSRenderer(canvas) {
 
 	self.scene.add(groundObj);
 
+	var lightDistance = self.boardSize.height * 1.5;
 	var pointLight = new THREE.SpotLight(0xffffff);
-	pointLight.position.y = 600;
-	pointLight.distance = 1000;
+	pointLight.position.y = lightDistance;
+	pointLight.distance = lightDistance*2;
 	pointLight.position.x = self.boardSize.width/2;
 	pointLight.castShadow = true;
 	pointLight.shadow.mapSize.width = 1024;
@@ -271,7 +271,7 @@ function ThreeJSRenderer(canvas) {
 	pointLight.target.position.x = self.boardSize.width / 2;
 
 	pointLight.shadow.camera.near = 1;
-	pointLight.shadow.camera.far = 10000;
+	pointLight.shadow.camera.far = lightDistance*2;
 	pointLight.shadow.camera.fov = 90;
 	self.scene.add(pointLight);
 	self.scene.add(pointLight.target);
@@ -282,8 +282,7 @@ function ThreeJSRenderer(canvas) {
 	
 	self.addPlayer = function(entity) {
 		var geom = new THREE.SphereGeometry(entity.radius, 32, 32, 0, Math.PI*2, 0, Math.PI/2);
-		var material = new THREE.MeshLambertMaterial({color: 0xffff00});
-		material.side = THREE.DoubleSide;
+		var material = new THREE.MeshLambertMaterial({color: "red"});
 		var sphere = new THREE.Mesh(geom, material);
 
 		var circle = new THREE.CircleGeometry(entity.radius, 32);
