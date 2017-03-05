@@ -19,7 +19,7 @@ var gameConfig = {
 function init() {
 	canvas = document.getElementById("canvas");
 	
-	game = new Game(canvas.getBoundingClientRect(), new CanvasRenderer(canvas));
+	game = new Game(canvas.getBoundingClientRect(), new ThreeJSRenderer(canvas));
 	keyMgr = new KeyboardInputManager();
 	keyMgr.init();
 	
@@ -57,14 +57,18 @@ function Game(boardSize, renderer) {
 	self.ball.radius = 20;
 	self.ball.position.x = 20;
 	
+	self.renderer.setBall(self.ball);
 	/*
 	* Adds player info
 	* returns controller item
 	*/
 	self.addPlayer = function(playerData) {
 		self.players.push(playerData);
+		
 		var entity = new Entity(playerData.color);
 		self.entities.push(entity);
+		
+		self.renderer.addPlayer(entity);
 		
 		var controller = new Controller(entity);
 		
@@ -158,12 +162,7 @@ function Game(boardSize, renderer) {
 	};
 	
 	self.render = function() {
-		self.renderer.clear();
-		
-		for(var entity of self.entities) {
-			self.renderer.renderPlayer(entity);
-		}
-		self.renderer.renderBall(self.ball);
+		self.renderer.render();
 	};
 	
 	self.canStart = function () {
@@ -194,7 +193,23 @@ function CanvasRenderer(canvas) {
 	self.boardSize = canvas.getBoundingClientRect();
 
 	self.ctx = canvas.getContext("2d");
+	self.players = [];
+	self.ball = {};
 	
+	self.addPlayer = function(entity) {
+		self.players.push(entity);
+	};
+	self.setBall = function(entity) {
+		self.ball = entity;
+	};
+	self.render = function() {
+		self.clear();
+		
+		for(var entity of self.players) {
+			self.renderPlayer(entity);
+		}
+		self.renderBall(self.ball);
+	};
 	self.renderPlayer = function(entity) {
 		self.ctx.beginPath();
 		self.ctx.arc(entity.position.x, self.boardSize.height - entity.position.y, entity.radius, Math.PI, 0);
@@ -202,7 +217,6 @@ function CanvasRenderer(canvas) {
 		self.ctx.fill();
 		self.ctx.closePath();
 	};
-	
 	self.renderBall = function(entity) {
 		self.ctx.beginPath();
 		self.ctx.arc(entity.position.x, self.boardSize.height - entity.position.y, entity.radius, 0, Math.PI*2);
@@ -210,9 +224,75 @@ function CanvasRenderer(canvas) {
 		self.ctx.fill();
 		self.ctx.closePath();
 	};
-	
 	self.clear = function() {
 		self.ctx.clearRect(0, 0, canvas.width, canvas.height);
+	};
+}
+
+function ThreeJSRenderer(canvas) {
+	var self = this;
+	self.canvas = canvas;
+	
+	self.boardSize = canvas.getBoundingClientRect();
+	self.scene = new THREE.Scene();
+	self.scene.background = new THREE.Color(0x87CEEB);
+	self.camera = new THREE.PerspectiveCamera(75, self.boardSize.width/self.boardSize.height, 0.1, 1000);
+
+	self.renderer = new THREE.WebGLRenderer({canvas: canvas});
+	self.camera.position.z = 500;
+	self.camera.position.x = self.boardSize.width/2;
+	self.camera.position.y = self.boardSize.height/2;
+		
+	self.players = [];
+	self.ball = {};
+
+	var ground = new THREE.PlaneGeometry(self.boardSize.width, self.boardSize.height);
+	var groundMaterial = new THREE.MeshLambertMaterial( {color: 0x00ff00 });
+	var groundObj = new THREE.Mesh(ground, groundMaterial);
+	groundObj.position.x = self.boardSize.width/2;
+	groundObj.rotation.x = Math.PI * 1.5;
+
+	self.scene.add(groundObj);
+
+	var pointLight = new THREE.PointLight(0xffffff);
+	pointLight.position.y = self.boardSize.height * 2;
+	pointLight.position.x = self.boardSize.width/2;
+	self.scene.add(pointLight);
+	
+	self.addPlayer = function(entity) {
+		var geom = new THREE.SphereGeometry(entity.radius, 32, 32, 0, Math.PI*2, 0, Math.PI/2);
+		var material = new THREE.MeshLambertMaterial({color: 0xffff00});
+		var sphere = new THREE.Mesh(geom, material);
+
+		sphere.gameEntity = entity;
+		self.players.push(sphere);
+		self.scene.add(sphere);
+	};
+
+	self.setBall = function(entity) {
+		var geom = new THREE.SphereGeometry(entity.radius, 8, 6, Math.PI, Math.PI*2);
+		var material = new THREE.MeshLambertMaterial({color: 0xffff00});
+		var sphere = new THREE.Mesh(geom, material);
+
+		sphere.gameEntity = entity;
+
+		self.ball = sphere;
+		self.scene.add(sphere);
+	};
+
+	self.render = function() {
+		for(var entity of self.players) {
+			self.renderPlayer(entity);
+		}
+		self.renderPlayer(self.ball);
+
+		self.renderer.render(self.scene, self.camera);
+	};
+
+	self.renderPlayer = function(entity) {
+		var g = entity.gameEntity;
+		entity.position.x = g.position.x;
+		entity.position.y = g.position.y;
 	};
 }
 
